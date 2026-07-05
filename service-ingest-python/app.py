@@ -6,13 +6,15 @@ high-throughput telemetry data from IoT edge devices.
 """
 
 import os
-from datetime import datetime, timezone
+from typing import Optional
 from flask import Flask, request, jsonify
-from pydantic import BaseModel, Field, field_validator, ConfigDict
-from pymongo import MongoClient
+
+# from pymongo import MongoClient
 from dotenv import load_dotenv
 
-from data.mongo.mongo_table import MongoTable
+from data.data_table import DataTable
+from data.telemetry_data import TelemetryData
+from data.mongo.mongo_data_table import MongoDataTable
 
 # Load environment variables
 load_dotenv()
@@ -20,82 +22,11 @@ load_dotenv()
 # Flask application initialization
 app = Flask(__name__)
 
-# Configuration from environment variables
-MONGODB_HOST = os.getenv("MONGODB_HOST", "localhost")
-MONGODB_PORT = int(os.getenv("MONGODB_PORT", 27017))
-MONGODB_USERNAME = os.getenv("MONGODB_USERNAME", "")
-MONGODB_PASSWORD = os.getenv("MONGODB_PASSWORD", "")
-MONGODB_DB_NAME = os.getenv("MONGODB_DB_NAME", "parcel_tracker")
-MONGODB_AUTH_SOURCE = os.getenv("MONGODB_AUTH_SOURCE", "admin")
 FLASK_ENV = os.getenv("FLASK_ENV", "development")
 FLASK_PORT = int(os.getenv("FLASK_PORT", 5000))
 
 # Maximum tracking entries per parcel (-1 for unlimited/no purge)
 MAX_TRACKING_ENTRIES = int(os.getenv("MAX_TRACKING_ENTRIES", 10))
-
-
-# Build MongoDB URI with authentication if credentials are provided
-def build_mongodb_uri():
-    """Build MongoDB connection URI with optional authentication."""
-    if MONGODB_USERNAME and MONGODB_PASSWORD:
-        from urllib.parse import quote_plus
-
-        encoded_username = quote_plus(MONGODB_USERNAME)
-        encoded_password = quote_plus(MONGODB_PASSWORD)
-        return f"mongodb://{encoded_username}:{encoded_password}@{MONGODB_HOST}:{MONGODB_PORT}/?authSource={MONGODB_AUTH_SOURCE}"
-    else:
-        return f"mongodb://{MONGODB_HOST}:{MONGODB_PORT}/"
-
-
-MONGODB_URI = build_mongodb_uri()
-
-
-# Pydantic model for telemetry data validation
-class TelemetryData(BaseModel):
-    """Schema for incoming telemetry data from IoT edge devices."""
-
-    parcel_id: str = Field(
-        ..., min_length=1, max_length=50, description="Unique parcel identifier"
-    )
-    device_id: str = Field(
-        ..., min_length=1, max_length=100, description="Device identifier"
-    )
-    temperature: float = Field(
-        ..., ge=-100.0, le=200.0, description="Temperature reading in Celsius"
-    )
-    tilt_x: float = Field(
-        ..., ge=-180.0, le=180.0, description="Tilt angle on X-axis in degrees"
-    )
-    tilt_y: float = Field(
-        ..., ge=-180.0, le=180.0, description="Tilt angle on Y-axis in degrees"
-    )
-    latitude: float = Field(
-        ..., ge=-90.0, le=90.0, description="GPS latitude coordinate"
-    )
-    longitude: float = Field(
-        ..., ge=-180.0, le=180.0, description="GPS longitude coordinate"
-    )
-
-    @field_validator("latitude", "longitude")
-    @classmethod
-    def validate_gps_not_zero(cls, v, info):
-        """Validate that GPS coordinates are not both zero (un-locked GPS)."""
-        # This validation will be done in the main validation check
-        return v
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "parcel_id": "A1B2C3D4",
-                "device_id": "STM32_NUCLEO_01",
-                "temperature": 22.4,
-                "tilt_x": 12.1,
-                "tilt_y": -3.5,
-                "latitude": 13.1394,
-                "longitude": 122.7483,
-            }
-        }
-    )
 
 
 def validate_gps_coordinates(latitude: float, longitude: float) -> bool:
@@ -113,89 +44,16 @@ def validate_gps_coordinates(latitude: float, longitude: float) -> bool:
 
 
 # MongoDB connection
-mongo_client = None
+data_table: Optional[DataTable] = None
 db = None
 
 
-def get_mongo_client():
+def get_data_table() -> DataTable:
     """Get or create MongoDB client connection."""
-    global mongo_client
-    if mongo_client is None:
-        mongo_client = MongoClient(MONGODB_URI)
-    return mongo_client
-
-
-def get_db():
-    """Get database instance."""
-    global db
-    if db is None:
-        client = get_mongo_client()
-        db = client[MONGODB_DB_NAME]
-    return db
-
-
-def get_collection():
-    """Get telemetry collection."""
-    return get_db()["telemetry"]
-
-
-def upsert_telemetry(telemetry: TelemetryData) -> str:
-    """
-    Upsert telemetry data with tracking array schema.
-
-    Creates a new parcel document if it doesn't exist, or adds a new tracking
-    entry to the existing parcel's tracking array. The newest tracking entry
-    is always at index 0. If tracking array exceeds MAX_TRACKING_ENTRIES,
-    the oldest entries are removed.
-
-    Args:
-        telemetry: Validated TelemetryData instance
-
-    Returns:
-        The MongoDB document ID (parcel_id)
-    """
-    collection = get_collection()
-
-    # Create new tracking entry
-    tracking_entry = {
-        "temperature": telemetry.temperature,
-        "tilt_x": telemetry.tilt_x,
-        "tilt_y": telemetry.tilt_y,
-        "latitude": telemetry.latitude,
-        "longitude": telemetry.longitude,
-        "timestamp": datetime.now(timezone.utc),
-    }
-
-    # Check if document exists - if not, create with initial tracking array
-    existing = collection.find_one({"parcel_id": telemetry.parcel_id})
-
-    if existing:
-        # Update existing document - push new tracking at index 0 with slice
-        # If MAX_TRACKING_ENTRIES is -1, no slice is applied (unlimited entries)
-        update_operation = {
-            "$push": {"tracking": {"$each": [tracking_entry], "$position": 0}}
-        }
-        if MAX_TRACKING_ENTRIES > 0:
-            update_operation["$push"]["tracking"]["$slice"] = MAX_TRACKING_ENTRIES
-
-        result = collection.find_one_and_update(
-            {"parcel_id": telemetry.parcel_id}, update_operation, return_document=True
-        )
-    else:
-        # Create new document with tracking array
-        result = collection.find_one_and_update(
-            {"parcel_id": telemetry.parcel_id},
-            {
-                "$setOnInsert": {
-                    "parcel_id": telemetry.parcel_id,
-                    "tracking": [tracking_entry],
-                }
-            },
-            upsert=True,
-            return_document=True,
-        )
-
-    return str(result["_id"]) if result else telemetry.parcel_id
+    global data_table
+    if data_table is None:
+        data_table = MongoDataTable(max_tracking_entries=MAX_TRACKING_ENTRIES)
+    return data_table
 
 
 @app.route("/api/v1/ingest", methods=["POST"])
@@ -244,8 +102,8 @@ def ingest_telemetry():
                 400,
             )
 
-        # Upsert telemetry data with tracking array
-        document_id = upsert_telemetry(telemetry)
+        data_table = get_data_table()
+        document_id = data_table.save_telemetry(telemetry=telemetry)
 
         # Log successful ingestion
         print(
@@ -289,13 +147,10 @@ def health_check():
     Returns:
         JSON response indicating service health status.
     """
-    try:
-        # Check MongoDB connection
-        client = get_mongo_client()
-        client.admin.command("ping")
-        mongo_status = "connected"
-    except Exception as e:
-        mongo_status = f"disconnected: {str(e)}"
+    mongo_status = "connected"
+    data_table = get_data_table()
+    if not data_table.is_connected():
+        mongo_status = "disconnected"
 
     return (
         jsonify(
@@ -333,12 +188,8 @@ def root():
 
 if __name__ == "__main__":
 
-    mongo_table = MongoTable()
-
     # Log startup information
     print(f"[STARTUP] Starting Python Ingest Service...")
-    print(f"[STARTUP] MongoDB URI: {MONGODB_URI}")
-    print(f"[STARTUP] Database: {MONGODB_DB_NAME}")
     print(f"[STARTUP] Flask Environment: {FLASK_ENV}")
     print(f"[STARTUP] Port: {FLASK_PORT}")
     print(
@@ -347,8 +198,8 @@ if __name__ == "__main__":
 
     # Test MongoDB connection
     try:
-        client = get_mongo_client()
-        client.admin.command("ping")
+        data_table = get_data_table()
+        _ = data_table.is_connected()
         print("[STARTUP] MongoDB connection: OK")
     except Exception as e:
         print(f"[STARTUP] MongoDB connection: FAILED - {str(e)}")

@@ -1,16 +1,16 @@
 # Python Ingest Service
 
-Lightweight asynchronous Python ingestion microservice for the Parcel State Tracker Platform. This service handles high-throughput telemetry data ingestion from IoT edge devices, validates incoming payloads, and persists validated data to MongoDB.
+Lightweight asynchronous Python ingestion microservice for the Parcel State Tracker Platform. This service handles high-throughput telemetry data ingestion from IoT edge devices, validates incoming payloads, and persists validated data using a database-agnostic architecture.
 
 ## 🏗️ Architecture Role
 
 This service serves as the entry point for all IoT telemetry data in the platform:
 
 ```
-[ IoT Edge Devices ] → HTTP POST (JSON) → [ Python Ingest Service ] → [ MongoDB ]
-                                                 ↓
-                                          Flask (Port 5000)
-                                          Pydantic Validation
+[ IoT Edge Devices ] → HTTP POST (JSON) → [ Python Ingest Service ] → [ Database ]
+                                              ↓
+                                         Flask (Port 5000)
+                                         Pydantic Validation
 ```
 
 ## 🛠️ Tech Stack
@@ -18,8 +18,7 @@ This service serves as the entry point for all IoT telemetry data in the platfor
 - **Python** - Core language
 - **Flask** - Lightweight web framework for HTTP API
 - **Pydantic** - Data validation and settings management
-- **PyMongo** - MongoDB Python driver
-- **MongoDB** - NoSQL document database for telemetry storage
+- **PyMongo** - MongoDB Python driver (default implementation)
 
 ## 📋 Features
 
@@ -267,8 +266,86 @@ service-ingest-python/
 ├── .env                  # Environment configuration (create from .env.example)
 ├── .env.example          # Example environment configuration
 ├── .env.docker.example   # Example Docker deployment configuration
-└── README.md             # This file
+├── README.md             # This file
+└── data/                  # Data abstraction layer
+    ├── __init__.py        # Data module exports
+    ├── data_table.py      # Abstract base class for database implementations
+    ├── telemetry_data.py  # Pydantic model for telemetry validation
+    └── mongo/              # MongoDB implementation
+        ├── __init__.py     # MongoDB module exports
+        └── mongo_data_table.py  # MongoDB DataTable implementation
 ```
+
+## 🗄️ Database Abstraction Layer
+
+The service uses a database-agnostic architecture that makes it easy to switch between different database backends or add support for new databases.
+
+### Architecture Overview
+
+The data layer follows the **Abstract Factory Pattern** with a clear separation between:
+
+- **`DataTable`** (abstract base class) - Defines the interface for telemetry data storage
+- **`MongoDataTable`** - MongoDB implementation of the `DataTable` interface
+- **`TelemetryData`** - Pydantic model for data validation
+
+This design allows for:
+- **Easy database switching** - Instantiate a different `DataTable` implementation
+- **Custom database support** - Create a new class implementing the `DataTable` interface
+- **Testing flexibility** - Use mock implementations for unit tests
+- **No code changes required** - The Flask app works with any `DataTable` implementation
+
+### Adding Support for a New Database
+
+To add support for a different database (e.g., PostgreSQL, MySQL, Redis):
+
+1. **Create a new implementation** in `data/<database>/<database>_data_table.py`:
+   ```python
+   from ..data_table import DataTable, TelemetrySavingError
+   from ..telemetry_data import TelemetryData
+   
+   class PostgresDataTable(DataTable):
+       def __init__(self, max_tracking_entries: int = -1):
+           super().__init__(max_tracking_entries=max_tracking_entries)
+           # Initialize database connection
+   
+       def save_telemetry(self, telemetry: TelemetryData) -> str:
+           # Implement save logic for PostgreSQL
+           pass
+   
+       def is_connected(self) -> bool:
+           # Implement connection check for PostgreSQL
+           pass
+   ```
+
+2. **Update `app.py`** to use your implementation:
+   ```python
+   # Instead of:
+   # from data.mongo.mongo_data_table import MongoDataTable
+   
+   # Use your new implementation:
+   from data.<database>.<database>_data_table import <Database>DataTable
+   
+   def get_data_table() -> DataTable:
+       global data_table
+       if data_table is None:
+           data_table = <Database>DataTable(max_tracking_entries=MAX_TRACKING_ENTRIES)
+       return data_table
+   ```
+
+### DataTable Interface
+
+All database implementations must extend the `DataTable` abstract base class and implement:
+
+| Method | Description |
+|--------|-------------|
+| `save_telemetry(telemetry: TelemetryData) -> str` | Saves telemetry data and returns the document/parcel ID |
+| `is_connected() -> bool` | Checks if the database connection is active |
+
+### Built-in Implementations
+
+| Class | Description | Location |
+|-------|-------------|----------|
+| `MongoDataTable` | MongoDB document storage with tracking array per parcel | `data/mongo/mongo_data_table.py` |
 
 ## 🔧 Configuration
 

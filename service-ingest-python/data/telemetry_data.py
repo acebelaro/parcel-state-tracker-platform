@@ -1,12 +1,29 @@
-from typing import Any
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+"""
+Telemetry Data Model
 
-from ..table import Table, TelemetryData
+This module defines the Pydantic model for validating incoming telemetry data
+from IoT edge devices. It includes field validation and JSON schema examples.
+"""
+
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 
 # Pydantic model for telemetry data validation
 class TelemetryData(BaseModel):
-    """Schema for incoming telemetry data from IoT edge devices."""
+    """Schema for incoming telemetry data from IoT edge devices.
+    
+    This model validates all incoming telemetry data including GPS coordinates,
+    temperature readings, and device orientation tilt measurements.
+    
+    Attributes:
+        parcel_id: Unique identifier for the parcel being tracked.
+        device_id: Unique identifier for the IoT device sending the data.
+        temperature: Temperature reading in Celsius from the device sensor.
+        tilt_x: Tilt angle on the X-axis in degrees.
+        tilt_y: Tilt angle on the Y-axis in degrees.
+        latitude: GPS latitude coordinate. Must be between -90.0 and 90.0.
+        longitude: GPS longitude coordinate. Must be between -180.0 and 180.0.
+    """
 
     parcel_id: str = Field(
         ..., min_length=1, max_length=50, description="Unique parcel identifier"
@@ -33,7 +50,15 @@ class TelemetryData(BaseModel):
     @field_validator("latitude", "longitude")
     @classmethod
     def validate_gps_not_zero(cls, v, info):
-        """Validate that GPS coordinates are not both zero (un-locked GPS)."""
+        """Validate that GPS coordinates are not both zero (un-locked GPS).
+        
+        Args:
+            v: The field value to validate.
+            info: The validation info containing field context.
+            
+        Returns:
+            The validated field value.
+        """
         # This validation will be done in the main validation check
         return v
 
@@ -50,12 +75,3 @@ class TelemetryData(BaseModel):
             }
         }
     )
-
-
-class MongoTable(Table):
-
-    def __init__(self):
-        super().__init__()
-
-    def save_telemetry(telemetry: Any):
-        pass
