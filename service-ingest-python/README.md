@@ -258,6 +258,9 @@ The test suite includes:
 - **Telemetry saving tests** - Document creation, updates, and error handling
 - **Connection status tests** - MongoDB connectivity verification
 - **Data validation tests** - Tracking entry structure validation
+- **Ingest service tests** - Payload validation, GPS validation, and health checks
+- **Exception tests** - Error message verification and inheritance
+- **Boundary value tests** - Min/max value validation for telemetry fields
 
 ### Manual Testing with cURL
 
@@ -282,7 +285,6 @@ curl -X POST http://localhost:5000/api/v1/ingest \
 2. Set the body type to `raw` and `JSON`
 3. Use the sample payload from the API section above
 4. Send the request and verify the response
-```
 
 ## 📁 Project Structure
 
@@ -299,7 +301,8 @@ service-ingest-python/
 ├── README.md             # This file
 ├── unit_tests/           # Unit test suite
 │   ├── __init__.py       # Test package initialization
-│   └── test_mongo_data_table.py  # MongoDB data table unit tests
+│   ├── test_mongo_data_table.py  # MongoDB data table unit tests
+│   └── test_ingest_service.py    # Telemetry Ingestion Service unit tests
 └── service/               # Service package
     ├── __init__.py        # Service exports (exception classes)
     ├── ingest_service.py  # Core telemetry ingestion service
@@ -310,7 +313,6 @@ service-ingest-python/
         └── mongo/         # MongoDB implementation
             ├── __init__.py  # MongoDB module exports
             └── mongo_data_table.py  # MongoDB DataTable implementation
-```
 ```
 
 ## 🗄️ Database Abstraction Layer

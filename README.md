@@ -1,57 +1,57 @@
-﻿# Parcel State Tracker Platform
+# Parcel State Tracker Platform
 
 An enterprise-grade, polyglot IoT tracking platform designed to monitor the state of shipping parcels in real time. The system captures environmental metrics (temperature) and spatial orientations (tilt angles) alongside GPS geographic data using an edge microcontroller, streams the telemetry through a high-throughput Python ingestion microservice into a local MongoDB instance, and serves the data through an enterprise Java Spring Boot REST API to a live React JS dashboard.
 
 ---
 
-## ðŸ—ï¸ System Architecture
+## 🏗️ System Architecture
 
 
 ```
 
                             [ LOCAL NETWORK / Wi-Fi ]
-                                       â”‚
-                                       â–¼ HTTP POST (JSON)
-â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-â”‚                           LOCAL SYSTEM ENVIRONMENT                               â”‚
-â”‚                                                                                  â”‚
-â”‚   â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”                  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”   â”‚
-â”‚   â”‚    Python Ingest Service    â”‚â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€>â”‚      Local MongoDB      â”‚   â”‚
-â”‚   â”‚        (Flask / Port 5000)  â”‚                  â”‚     (Telemetry Logs)    â”‚   â”‚
-â”‚   â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜                  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜   â”‚
-â”‚                                                                 â”‚                â”‚
-â”‚   â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”                               â”‚                â”‚
-â”‚   â”‚   Java Spring Boot Backend  â”‚<â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜                â”‚
-â”‚   â”‚      (Enterprise API / 8080)â”‚                                                â”‚
-â”‚   â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜                                                â”‚
-â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
-                   â”‚
-                   â”‚ REST API / JSON
-                   â–¼
-â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-â”‚     React JS Dashboard      â”‚
-â”‚  (Interactive Maps/Charts)  â”‚
-â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+                                       │
+                                       ▼ HTTP POST (JSON)
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│                           LOCAL SYSTEM ENVIRONMENT                               │
+│                                                                                  │
+│   ┌─────────────────────────────┐                  ┌─────────────────────────┐   │
+│   │    Python Ingest Service    │─────────────────>│      Local MongoDB      │   │
+│   │        (Flask / Port 5000)  │                  │     (Telemetry Logs)    │   │
+│   └─────────────────────────────┘                  └────────────┬────────────┘   │
+│                                                                 │                │
+│   ┌─────────────────────────────┐                               │                │
+│   │   Java Spring Boot Backend  │<──────────────────────────────┘                │
+│   │      (Enterprise API / 8080)│                                                │
+│   └──────────────┬──────────────┘                                                │
+└──────────────────┼───────────────────────────────────────────────────────────────┘
+                   │
+                   │ REST API / JSON
+                   ▼
+┌─────────────────────────────┐
+│     React JS Dashboard      │
+│  (Interactive Maps/Charts)  │
+└─────────────────────────────┘
 
 ```
 
 ---
 
-## ðŸ“ Repository Structure
+## 📁 Repository Structure
 
 The project is managed as a unified monorepo to enable atomic feature commits and streamlined local orchestration profiles:
 
-* **`ðŸ“‚ firmware/`**: Embedded software assets grouped by development target boards.
-    * `ðŸ“‚ stm32-nucleo/`: Core operational firmware compiled in C utilizing HAL libraries and DMA ring buffers.
-    * `ðŸ“‚ arduino-uno/`: Future architecture abstraction layer for Arduino prototyping modules.
-* **`ðŸ“‚ service-ingest-python/`**: Lightweight asynchronous Python ingestion tool leveraging Flask and Pydantic validation rules.
-* **`ðŸ“‚ backend-spring-boot/`**: Enterprise-tier Java application acting as the single source of truth for database aggregation and UI consumption.
-* **`ðŸ“‚ frontend-react/`**: Single Page Application (SPA) tracking panel housing chart timelines and leaf maps.
-* **`ðŸ“‚ deployment/`**: Containment environments for automated local docker assemblies.
+* **`📂 firmware/`**: Embedded software assets grouped by development target boards.
+    * `📂 stm32-nucleo/`: Core operational firmware compiled in C utilizing HAL libraries and DMA ring buffers.
+    * `📂 arduino-uno/`: Future architecture abstraction layer for Arduino prototyping modules.
+* **`📂 service-ingest-python/`**: Lightweight asynchronous Python ingestion tool leveraging Flask and Pydantic validation rules.
+* **`📂 backend-spring-boot/`**: Enterprise-tier Java application acting as the single source of truth for database aggregation and UI consumption.
+* **`📂 frontend-react/`**: Single Page Application (SPA) tracking panel housing chart timelines and leaf maps.
+* **`📂 deployment/`**: Containment environments for automated local docker assemblies.
 
 ---
 
-## ðŸ› ï¸ Tech Stack & Components
+## 🛠️ Tech Stack & Components
 
 ### Hardware Component Specifications
 * **Microcontroller:** STMicroelectronics `NUCLEO-F411RE` (ARM Cortex-M4 @ 100MHz)
@@ -70,7 +70,7 @@ The project is managed as a unified monorepo to enable atomic feature commits an
 
 ---
 
-## ðŸ›°ï¸ Telemetry API Data Payload
+## 🛰️ Telemetry API Data Payload
 
 The hardware edge device maps sensor values directly to a unified JSON data package when transmitting telemetry payloads to the Python ingestion microservice:
 
@@ -106,7 +106,7 @@ The Python framework validates formatting bounds, enforces criteria schemas (e.g
 
 ---
 
-## ðŸš€ Quick Start Local Environment Integration
+## 🚀 Quick Start Local Environment Integration
 
 The entire platform ecosystem (excluding the physical microcontroller board) can be spun up locally inside Docker containers using the orchestrations found in the `deployment/` directory.
 
@@ -145,7 +145,7 @@ Send an HTTP POST using Postman to the endpoint: `http://localhost:5000/api/v1/i
 
 ---
 
-## ðŸ“ˆ Key Engineering Principles Demonstrated
+## 📈 Key Engineering Principles Demonstrated
 
 * **Polyglot Microservices:** Separates high-frequency network input operations (Python/Flask) from enterprise query consolidation logic (Java/Spring Boot).
 * **Low-Level Hardware Device Manipulation:** Writing robust drivers in C to directly decode register structures over I2C and UART buses.
