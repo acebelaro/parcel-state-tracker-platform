@@ -53,22 +53,25 @@ Ingests telemetry data from IoT edge devices.
 {
   "status": "success",
   "message": "Telemetry data ingested successfully",
-  "document_id": "660c1d4f2b1a8c4d23e8f9a1"
+  "parcel_id": "A1B2C3D4"
 }
 ```
 
-**Stored Document in MongoDB:**
+**Stored Document in MongoDB (per parcel):**
 ```json
 {
   "_id": {"$oid": "660c1d4f2b1a8c4d23e8f9a1"},
   "parcel_id": "A1B2C3D4",
-  "device_id": "STM32_NUCLEO_01",
-  "temperature": 22.4,
-  "tilt_x": 12.1,
-  "tilt_y": -3.5,
-  "latitude": 13.1394,
-  "longitude": 122.7483,
-  "timestamp": "2026-07-05T22:45:00.000Z"
+  "tracking": [
+    {
+      "temperature": 22.4,
+      "tilt_x": 12.1,
+      "tilt_y": -3.5,
+      "latitude": 13.1394,
+      "longitude": 122.7483,
+      "timestamp": "2026-07-05T22:45:00.000Z"
+    }
+  ]
 }
 ```
 
@@ -189,7 +192,7 @@ The Docker deployment includes **MongoDB Express**, a web-based MongoDB admin in
 **What you can do with MongoDB Express:**
 - View all databases and collections
 - Browse and search documents in the `parcel_tracker` database
-- View telemetry data ingested by the service
+- View telemetry data ingested by the service (inside the `tracking` array)
 - Execute queries and aggregations
 - Import/export data
 - Monitor database performance
@@ -208,14 +211,17 @@ use parcel_tracker
 # View all collections
 show collections
 
-# View recent telemetry data
-db.telemetry.find().sort({timestamp: -1}).limit(10)
+# View all parcel documents
+db.telemetry.find().pretty()
 
-# Count total documents
+# Count total parcels
 db.telemetry.countDocuments()
 
-# View documents for a specific parcel
+# View tracking entries for a specific parcel
 db.telemetry.find({parcel_id: "A1B2C3D4"}).pretty()
+
+# Get the latest tracking entry for a parcel
+db.telemetry.find({parcel_id: "A1B2C3D4"}, {"tracking.0": 1, "parcel_id": 1})
 ```
 
 ### Full Platform Deployment
@@ -267,13 +273,16 @@ service-ingest-python/
 ├── .env.example          # Example environment configuration
 ├── .env.docker.example   # Example Docker deployment configuration
 ├── README.md             # This file
-└── data/                  # Data abstraction layer
-    ├── __init__.py        # Data module exports
-    ├── data_table.py      # Abstract base class for database implementations
-    ├── telemetry_data.py  # Pydantic model for telemetry validation
-    └── mongo/              # MongoDB implementation
-        ├── __init__.py     # MongoDB module exports
-        └── mongo_data_table.py  # MongoDB DataTable implementation
+└── service/               # Service package
+    ├── __init__.py        # Service exports (exception classes)
+    ├── ingest_service.py  # Core telemetry ingestion service
+    └── data/              # Data abstraction layer
+        ├── __init__.py    # Data module exports
+        ├── data_table.py  # Abstract base class for database implementations
+        ├── telemetry_data.py  # Pydantic model for telemetry validation
+        └── mongo/         # MongoDB implementation
+            ├── __init__.py  # MongoDB module exports
+            └── mongo_data_table.py  # MongoDB DataTable implementation
 ```
 
 ## 🗄️ Database Abstraction Layer
@@ -298,39 +307,39 @@ This design allows for:
 
 To add support for a different database (e.g., PostgreSQL, MySQL, Redis):
 
-1. **Create a new implementation** in `data/<database>/<database>_data_table.py`:
-   ```python
-   from ..data_table import DataTable, TelemetrySavingError
-   from ..telemetry_data import TelemetryData
-   
-   class PostgresDataTable(DataTable):
-       def __init__(self, max_tracking_entries: int = -1):
-           super().__init__(max_tracking_entries=max_tracking_entries)
-           # Initialize database connection
-   
-       def save_telemetry(self, telemetry: TelemetryData) -> str:
-           # Implement save logic for PostgreSQL
-           pass
-   
-       def is_connected(self) -> bool:
-           # Implement connection check for PostgreSQL
-           pass
-   ```
+1. **Create a new implementation** in `service/data/<database>/<database>_data_table.py`:
+    ```python
+    from ..data_table import DataTable, TelemetrySavingError
+    from ..telemetry_data import TelemetryData
+    
+    class PostgresDataTable(DataTable):
+        def __init__(self, max_tracking_entries: int = -1):
+            super().__init__(max_tracking_entries=max_tracking_entries)
+            # Initialize database connection
+    
+        def save_telemetry(self, telemetry: TelemetryData) -> str:
+            # Implement save logic for PostgreSQL
+            pass
+    
+        def is_connected(self) -> bool:
+            # Implement connection check for PostgreSQL
+            pass
+    ```
 
 2. **Update `app.py`** to use your implementation:
-   ```python
-   # Instead of:
-   # from data.mongo.mongo_data_table import MongoDataTable
-   
-   # Use your new implementation:
-   from data.<database>.<database>_data_table import <Database>DataTable
-   
-   def get_data_table() -> DataTable:
-       global data_table
-       if data_table is None:
-           data_table = <Database>DataTable(max_tracking_entries=MAX_TRACKING_ENTRIES)
-       return data_table
-   ```
+    ```python
+    # Instead of:
+    # from service.data.mongo.mongo_data_table import MongoDataTable
+    
+    # Use your new implementation:
+    from service.data.<database>.<database>_data_table import <Database>DataTable
+    
+    def get_data_table() -> DataTable:
+        global data_table
+        if data_table is None:
+            data_table = <Database>DataTable(max_tracking_entries=MAX_TRACKING_ENTRIES)
+        return data_table
+    ```
 
 ### DataTable Interface
 
@@ -345,7 +354,32 @@ All database implementations must extend the `DataTable` abstract base class and
 
 | Class | Description | Location |
 |-------|-------------|----------|
-| `MongoDataTable` | MongoDB document storage with tracking array per parcel | `data/mongo/mongo_data_table.py` |
+| `MongoDataTable` | MongoDB document storage with tracking array per parcel | `service/data/mongo/mongo_data_table.py` |
+
+## ⚠️ Exception Classes
+
+The service provides custom exception classes for handling telemetry ingestion errors:
+
+| Exception | Description |
+|-----------|-------------|
+| `SaveTelemetryError` | Base exception for all telemetry saving failures |
+| `SaveTelemetryInvalidDataError` | Raised when payload fails Pydantic validation (missing fields, invalid types, out-of-range values) |
+| `SaveTelemetryInvalidGpsDataError` | Raised when GPS coordinates are both 0.0 (un-locked GPS) |
+
+These exceptions can be imported from the service package:
+
+```python
+from service import SaveTelemetryError, SaveTelemetryInvalidDataError, SaveTelemetryInvalidGpsDataError
+
+try:
+    service.save_telemetry_data(data)
+except SaveTelemetryInvalidDataError:
+    # Handle validation errors
+    pass
+except SaveTelemetryInvalidGpsDataError:
+    # Handle GPS lock errors
+    pass
+```
 
 ## 🔧 Configuration
 

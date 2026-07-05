@@ -6,21 +6,21 @@ high-throughput telemetry data from IoT edge devices.
 """
 
 import os
+import logging
 from typing import Optional
 from flask import Flask, request, jsonify
-
-# from pymongo import MongoClient
 from dotenv import load_dotenv
 
-from data.data_table import DataTable
-from data.telemetry_data import TelemetryData
-from data.mongo.mongo_data_table import MongoDataTable
+from service.data.mongo.mongo_data_table import MongoDataTable
+from service.ingest_service import TelemetryIngestionService, SaveTelemetryError
 
 # Load environment variables
 load_dotenv()
 
 # Flask application initialization
 app = Flask(__name__)
+
+LOGGER = logging.getLogger(__name__)
 
 FLASK_ENV = os.getenv("FLASK_ENV", "development")
 FLASK_PORT = int(os.getenv("FLASK_PORT", 5000))
@@ -29,31 +29,15 @@ FLASK_PORT = int(os.getenv("FLASK_PORT", 5000))
 MAX_TRACKING_ENTRIES = int(os.getenv("MAX_TRACKING_ENTRIES", 10))
 
 
-def validate_gps_coordinates(latitude: float, longitude: float) -> bool:
-    """
-    Validate that GPS coordinates are not both zero (indicating un-locked GPS).
-
-    Args:
-        latitude: GPS latitude coordinate
-        longitude: GPS longitude coordinate
-
-    Returns:
-        True if coordinates are valid, False if both are zero
-    """
-    return not (latitude == 0.0 and longitude == 0.0)
+ingestion_service: Optional[TelemetryIngestionService] = None
 
 
-# MongoDB connection
-data_table: Optional[DataTable] = None
-db = None
-
-
-def get_data_table() -> DataTable:
-    """Get or create MongoDB client connection."""
-    global data_table
-    if data_table is None:
+def get_service() -> TelemetryIngestionService:
+    global ingestion_service
+    if ingestion_service is None:
         data_table = MongoDataTable(max_tracking_entries=MAX_TRACKING_ENTRIES)
-    return data_table
+        ingestion_service = TelemetryIngestionService(data_table=data_table)
+    return ingestion_service
 
 
 @app.route("/api/v1/ingest", methods=["POST"])
@@ -62,53 +46,22 @@ def ingest_telemetry():
     Ingest telemetry data from IoT edge devices.
 
     This endpoint receives JSON payloads from IoT devices, validates the data,
-    adds server-side metadata, and stores it in MongoDB.
+    adds server-side metadata, and stores it in database.
 
     Returns:
-        JSON response with status and document ID on success,
+        JSON response with status and parcel ID on success,
         or error details on failure.
     """
     try:
         # Parse JSON payload
         data = request.get_json()
 
-        if data is None:
-            return jsonify({"status": "error", "message": "Invalid JSON payload"}), 400
-
-        # Validate payload using Pydantic
-        try:
-            telemetry = TelemetryData(**data)
-        except ValueError as e:
-            return (
-                jsonify(
-                    {
-                        "status": "error",
-                        "message": "Validation failed",
-                        "details": str(e),
-                    }
-                ),
-                400,
-            )
-
-        # Validate GPS coordinates (not both zero)
-        if not validate_gps_coordinates(telemetry.latitude, telemetry.longitude):
-            return (
-                jsonify(
-                    {
-                        "status": "error",
-                        "message": "Invalid GPS coordinates: both latitude and longitude cannot be 0.0 (un-locked GPS)",
-                    }
-                ),
-                400,
-            )
-
-        data_table = get_data_table()
-        document_id = data_table.save_telemetry(telemetry=telemetry)
+        ingestion_service = get_service()
+        telemetry_data = ingestion_service.save_telemetry_data(data=data)
 
         # Log successful ingestion
         print(
-            f"[INGEST] Successfully ingested telemetry for parcel {telemetry.parcel_id}, "
-            f"document_id: {document_id}"
+            f"[INGEST] Successfully ingested telemetry for parcel {telemetry_data.parcel_id}, "
         )
 
         # Return success response
@@ -117,15 +70,17 @@ def ingest_telemetry():
                 {
                     "status": "success",
                     "message": "Telemetry data ingested successfully",
-                    "document_id": document_id,
+                    "parcel_id": telemetry_data.parcel_id,
                 }
             ),
             200,
         )
-
     except Exception as e:
-        # Log error
-        print(f"[ERROR] Failed to ingest telemetry: {str(e)}")
+        if not isinstance(e, SaveTelemetryError):
+            # Log error
+            LOGGER.error(f"Failed to ingest telemetry due to unknown error: {str(e)}")
+        else:
+            LOGGER.error(str(e))
 
         return (
             jsonify(
@@ -147,18 +102,17 @@ def health_check():
     Returns:
         JSON response indicating service health status.
     """
-    mongo_status = "connected"
-    data_table = get_data_table()
-    if not data_table.is_connected():
-        mongo_status = "disconnected"
+    service_status = "connected"
+    ingestion_service = get_service()
+    if not ingestion_service.is_healthy():
+        service_status = "disconnected"
 
     return (
         jsonify(
             {
-                "status": "healthy",
+                "service_status": service_status,
                 "service": "python-ingest-service",
                 "version": "1.0.0",
-                "mongodb": mongo_status,
             }
         ),
         200,
@@ -196,13 +150,13 @@ if __name__ == "__main__":
         f"[STARTUP] Max Tracking Entries: {'unlimited' if MAX_TRACKING_ENTRIES == -1 else MAX_TRACKING_ENTRIES}"
     )
 
-    # Test MongoDB connection
+    # Test Database connection
     try:
-        data_table = get_data_table()
-        _ = data_table.is_connected()
-        print("[STARTUP] MongoDB connection: OK")
+        ingestion_service = get_service()
+        _ = ingestion_service.is_healthy()
+        print("[STARTUP] Database connection: OK")
     except Exception as e:
-        print(f"[STARTUP] MongoDB connection: FAILED - {str(e)}")
+        print(f"[STARTUP] Database connection: FAILED - {str(e)}")
         print("[STARTUP] WARNING: Service will start but database operations may fail")
 
     # Run Flask application
