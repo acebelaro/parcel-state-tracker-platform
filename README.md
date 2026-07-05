@@ -151,16 +151,4 @@ Send an HTTP POST using Postman to the endpoint: `http://localhost:5000/api/v1/i
 * **Low-Level Hardware Device Manipulation:** Writing robust drivers in C to directly decode register structures over I2C and UART buses.
 * **Asynchronous Database Decoupling:** Isolates application services using MongoDB as a persistent document bridge, keeping individual services resilient to network connection drops.
 * **Failsafe Telemetry Data Integrity:** Using strict runtime validation techniques (Pydantic) to catch data corruption before records reach production systems.
-"""
-
-file_path = "README.md"
-with open(file_path, "w", encoding="utf-8") as file:
-file.write(readme_content.strip())
-
-```
-Your Markdown file is ready
-[file-tag: code-generated-file-0-1783234433577220675]
-
-You can download this file and place it directly into the root folder of your project repository. Best of luck building your parcel tracker! Feel free to reach out when you're ready to start writing the STM32 C drivers or setting up the Spring Boot database models.
-
-```
+* **Last 10 Telemetry Logs:** MongoDB maintains only the most recent 10 telemetry records per parcel, automatically purging older entries to optimize storage and ensure fresh data visibility.

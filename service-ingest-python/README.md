@@ -28,6 +28,7 @@ This service serves as the entry point for all IoT telemetry data in the platfor
 - **Automatic timestamp** generation for all ingested records
 - **GPS data validation** (rejects un-locked 0.0 coordinates)
 - **High-throughput** design optimized for IoT data streams
+- **Last 10 telemetry logs tracking:** MongoDB maintains only the most recent 10 telemetry records per parcel, automatically purging older entries to optimize storage and ensure fresh data visibility.
 
 ## 📡 API Endpoint
 
@@ -79,8 +80,9 @@ Ingests telemetry data from IoT edge devices.
 - Python 3.8 or higher
 - pip (Python package manager)
 - MongoDB instance (local or remote)
+- Docker and Docker Compose (for containerized deployment)
 
-### Installation
+### Local Installation
 
 1. **Navigate to the service directory:**
 ```bash
@@ -126,9 +128,100 @@ python app.py
 
 The service will start on `http://localhost:5000` (or the port specified in your environment).
 
-### Docker Deployment
+### Docker Deployment (Standalone)
 
-The service can be deployed as part of the complete platform using Docker Compose from the `deployment/` directory:
+Deploy the Python ingest service with MongoDB using Docker Compose:
+
+1. **Navigate to the service directory:**
+```bash
+cd service-ingest-python
+```
+
+2. **Copy the Docker environment example:**
+```bash
+cp .env.docker.example .env.docker
+```
+
+3. **Customize environment variables (optional):**
+Edit `.env.docker` to configure MongoDB credentials and other settings.
+
+4. **Start the services:**
+```bash
+docker-compose up --build
+```
+
+This will:
+- Build the Python ingest service container
+- Start a MongoDB 7 container with persistent storage
+- Start MongoDB Express for web-based database monitoring
+- Configure networking between services
+- Expose the service on port 5000 (or your configured port)
+- Expose MongoDB Express on port 8081
+
+5. **Verify the deployment:**
+```bash
+# Check service health
+curl http://localhost:5000/api/v1/health
+
+# View logs
+docker-compose logs -f service-ingest-python
+```
+
+6. **Stop the services:**
+```bash
+docker-compose down
+```
+
+To remove all data and start fresh:
+```bash
+docker-compose down -v
+```
+
+### 📊 Monitoring MongoDB Data
+
+The Docker deployment includes **MongoDB Express**, a web-based MongoDB admin interface:
+
+**Access MongoDB Express:**
+1. Open your browser and navigate to `http://localhost:8081`
+2. Login with credentials from your `.env.docker` file:
+   - Username: `admin` (or your configured `MONGO_EXPRESS_USERNAME`)
+   - Password: `express123` (or your configured `MONGO_EXPRESS_PASSWORD`)
+
+**What you can do with MongoDB Express:**
+- View all databases and collections
+- Browse and search documents in the `parcel_tracker` database
+- View telemetry data ingested by the service
+- Execute queries and aggregations
+- Import/export data
+- Monitor database performance
+
+**Alternative: Command-line monitoring**
+
+You can also monitor MongoDB data using the MongoDB shell:
+
+```bash
+# Connect to MongoDB container
+docker exec -it parcel-tracker-mongo mongosh -u admin -p admin123
+
+# Switch to the parcel_tracker database
+use parcel_tracker
+
+# View all collections
+show collections
+
+# View recent telemetry data
+db.telemetry.find().sort({timestamp: -1}).limit(10)
+
+# Count total documents
+db.telemetry.countDocuments()
+
+# View documents for a specific parcel
+db.telemetry.find({parcel_id: "A1B2C3D4"}).pretty()
+```
+
+### Full Platform Deployment
+
+The service can also be deployed as part of the complete platform using Docker Compose from the `deployment/` directory:
 
 ```bash
 cd deployment
@@ -169,8 +262,11 @@ curl -X POST http://localhost:5000/api/v1/ingest \
 service-ingest-python/
 ├── app.py                 # Main Flask application
 ├── requirements.txt       # Python dependencies
+├── Dockerfile            # Docker image definition
+├── docker-compose.yml    # Docker Compose configuration with MongoDB
 ├── .env                  # Environment configuration (create from .env.example)
 ├── .env.example          # Example environment configuration
+├── .env.docker.example   # Example Docker deployment configuration
 └── README.md             # This file
 ```
 
