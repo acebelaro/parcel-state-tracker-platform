@@ -1,0 +1,14 @@
+# Python Ingest Service Dependencies
+# Parcel State Tracker Platform
+
+# Web Framework
+Flask==3.0.0
+
+# Data Validation
+pydantic==2.5.3
+
+# MongoDB Driver
+pymongo==4.6.1
+
+# Environment Variables
+python-dotenv==1.0.0
