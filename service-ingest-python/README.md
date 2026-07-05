@@ -237,6 +237,28 @@ This will start the Python ingest service along with MongoDB, the Java backend, 
 
 ## 🧪 Testing
 
+### Unit Tests
+
+Run the unit tests for the MongoDB data table implementation:
+
+```bash
+# Navigate to the service directory
+cd service-ingest-python
+
+# Set Python path and run tests
+set PYTHONPATH=.&& python -m pytest -v
+
+# Or run with detailed output
+set PYTHONPATH=.&& python -m pytest unit_tests/ -v --tb=short
+```
+
+The test suite includes:
+- **Initialization tests** - Connection success and error handling
+- **URI building tests** - Authentication configuration testing
+- **Telemetry saving tests** - Document creation, updates, and error handling
+- **Connection status tests** - MongoDB connectivity verification
+- **Data validation tests** - Tracking entry structure validation
+
 ### Manual Testing with cURL
 
 Test the ingestion endpoint:
@@ -260,6 +282,7 @@ curl -X POST http://localhost:5000/api/v1/ingest \
 2. Set the body type to `raw` and `JSON`
 3. Use the sample payload from the API section above
 4. Send the request and verify the response
+```
 
 ## 📁 Project Structure
 
@@ -267,12 +290,16 @@ curl -X POST http://localhost:5000/api/v1/ingest \
 service-ingest-python/
 ├── app.py                 # Main Flask application
 ├── requirements.txt       # Python dependencies
+├── pytest.ini             # Pytest configuration
 ├── Dockerfile            # Docker image definition
 ├── docker-compose.yml    # Docker Compose configuration with MongoDB
 ├── .env                  # Environment configuration (create from .env.example)
 ├── .env.example          # Example environment configuration
 ├── .env.docker.example   # Example Docker deployment configuration
 ├── README.md             # This file
+├── unit_tests/           # Unit test suite
+│   ├── __init__.py       # Test package initialization
+│   └── test_mongo_data_table.py  # MongoDB data table unit tests
 └── service/               # Service package
     ├── __init__.py        # Service exports (exception classes)
     ├── ingest_service.py  # Core telemetry ingestion service
@@ -283,6 +310,7 @@ service-ingest-python/
         └── mongo/         # MongoDB implementation
             ├── __init__.py  # MongoDB module exports
             └── mongo_data_table.py  # MongoDB DataTable implementation
+```
 ```
 
 ## 🗄️ Database Abstraction Layer
