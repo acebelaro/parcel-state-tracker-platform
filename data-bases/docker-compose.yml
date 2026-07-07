@@ -55,4 +55,4 @@ volumes:
 # Custom network for service communication
 networks:
   parcel-tracker-network:
-    driver: bridge
+    external: true

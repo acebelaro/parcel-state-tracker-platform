@@ -61,6 +61,7 @@ class MongoDataTable(DataTable):
             self._mongo_uri = MongoDataTable._build_mongodb_uri()
             print(self._mongo_uri)
             self._mongo_client = MongoClient(self._mongo_uri)
+            print(" >>> Created mongo client <<< ")
         except Exception as e:
             raise TelemetryTableCreationError(str(e))
 
