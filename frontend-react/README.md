@@ -1,77 +1,39 @@
-# React + TypeScript + Vite
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
-
-Note: This will impact Vite dev & build performances.
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
 
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+src/
+├── assets/                 # Global static assets (images, logos, fonts)
+├── components/             # Global reusable UI components (Buttons, Inputs, Spinners)
+│   ├── Button/
+│   │   ├── Button.tsx
+│   │   └── Button.module.css
+│   └── ProtectedRoute.tsx
+├── config/                 # Global configurations (API base URLs, constants)
+├── features/               # Domain-driven features (The core of your app)
+│   ├── auth/               # Everything related to Authentication
+│   │   ├── components/     # Auth-specific UI (LoginForm, RegisterForm)
+│   │   ├── pages/          # Auth pages (LoginPage, RegisterPage)
+│   │   ├── authSlice.ts    # Redux Reducers & Actions for auth
+│   │   └── authSagas.ts    # Redux Sagas for async login/logout api calls
+│   │
+│   ├── parcels/            # Everything related to Parcel Tracking
+│   │   ├── components/     # TelemetryGauge, ParcelCard, ThresholdForm
+│   │   ├── pages/          # DashboardPage, ParcelDetailsPage
+│   │   ├── parcelSlice.ts  # Redux slice for parcel state
+│   │   └── parcelSagas.ts  # Redux Sagas for fetching live telemetry/alerts
+│   │
+│   └── users/              # User/Profile management feature
+│
+├── layouts/                # Main layout wrappers (e.g., DashboardLayout, MinimalLayout)
+├── routes/                 # App routing configuration (AppRoutes.tsx)
+├── store/                  # Redux Global Store Setup
+│   ├── index.ts            # Configures configureStore, binds rootReducer & SagaMiddleware
+│   ├── rootReducer.ts      # Combines all feature slices (authSlice, parcelSlice)
+│   └── rootSaga.ts         # Combines all feature sagas (authSagas, parcelSagas)
+├── types/                  # Global TypeScript interfaces/types (User, Parcel, Telemetry)
+├── App.tsx                 # Root component providing Store and Router
+└── main.tsx                # Application entry point
 
 ```
