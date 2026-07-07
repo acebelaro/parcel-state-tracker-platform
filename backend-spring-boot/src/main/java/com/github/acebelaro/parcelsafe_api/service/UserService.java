@@ -26,7 +26,7 @@ public class UserService {
         
         // Create new user with encoded password
         User user = User.builder()
-                .name(request.getName())
+                .username(request.getUsername())
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .build();
@@ -36,14 +36,14 @@ public class UserService {
         return AuthResponse.builder()
                 .message("User registered successfully")
                 .userId(savedUser.getId())
-                .name(savedUser.getName())
+                .name(savedUser.getUsername())
                 .email(savedUser.getEmail())
                 .build();
     }
     
     public AuthResponse login(LoginRequest request) {
         // Find user by email
-        User user = userRepository.findByEmail(request.getEmail())
+        User user = userRepository.findByUsername(request.getUsername())
                 .orElse(null);
         
         if (user == null) {
@@ -62,7 +62,7 @@ public class UserService {
         return AuthResponse.builder()
                 .message("Login successful")
                 .userId(user.getId())
-                .name(user.getName())
+                .name(user.getUsername())
                 .email(user.getEmail())
                 .build();
     }
