@@ -47,7 +47,7 @@ The project is managed as a unified monorepo to enable atomic feature commits an
 * **`📂 service-ingest-python/`**: Lightweight asynchronous Python ingestion tool leveraging Flask and Pydantic validation rules.
 * **`📂 backend-spring-boot/`**: Enterprise-tier Java application acting as the single source of truth for database aggregation and UI consumption.
 * **`📂 frontend-react/`**: Single Page Application (SPA) tracking panel housing chart timelines and leaf maps.
-* **`📂 deployment/`**: Containment environments for automated local docker assemblies.
+* **`📂 data-bases/`**: MongoDB database service configuration with Docker Compose, including MongoDB Express admin interface for database management.
 
 ---
 
@@ -108,7 +108,7 @@ The Python framework validates formatting bounds, enforces criteria schemas (e.g
 
 ## 🚀 Quick Start Local Environment Integration
 
-The entire platform ecosystem (excluding the physical microcontroller board) can be spun up locally inside Docker containers using the orchestrations found in the `deployment/` directory.
+The entire platform ecosystem (excluding the physical microcontroller board) can be spun up locally inside Docker containers using the orchestrations found in the `data-bases/` directory.
 
 ### Prerequisites
 
@@ -124,23 +124,31 @@ cd parcel-state-tracker-platform
 
 ```
 
-
-2. **Boot the Integrated Container Stack:**
+2. **Create the shared Docker network:**
 ```bash
-cd deployment
-docker-compose up --build
-
+docker network create parcel-tracker-network
 ```
 
+3. **Start the Database Services:**
+```bash
+cd data-bases
+cp .env.docker.example .env.docker
+docker-compose up -d
+```
 
-This automated build pipeline initializes:
-* **MongoDB Engine** on `localhost:27017`
-* **Python Ingestion Endpoint** listening on `localhost:5000`
-* **Java Spring Boot REST Core Server** operating on `localhost:8080`
-* **React JS Web Client UI** served on `localhost:3000`
+4. **Start other services (optional):**
+```bash
+cd service-ingest-python
+cp .env.docker.example .env.docker
+docker-compose up -d
+```
+
+5. **Verify Database Services:**
+* **MongoDB Engine** will be available on `localhost:27017`
+* **MongoDB Express Admin Interface** will be available on `localhost:8081`
 
 
-3. **Verify and Test Ingestion:**
+6. **Verify and Test Ingestion:**
 Send an HTTP POST using Postman to the endpoint: `http://localhost:5000/api/v1/ingest` using the sample payload provided in the Telemetry section. Check your terminal logs to watch the ingestion pipeline and database engine seamlessly execute!
 
 ---
