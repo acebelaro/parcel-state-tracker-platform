@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import WelcomePage from './features/parcels/pages/welcome'
+import WelcomePage from './features/auth/pages/welcome'
 import './App.css'
 
 function App() {

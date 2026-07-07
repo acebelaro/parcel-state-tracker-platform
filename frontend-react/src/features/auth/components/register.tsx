@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Segment, Form, Button, Header, Icon } from 'semantic-ui-react';
 
+
 interface RegisterProps {
     switchToLogin: Function
 }

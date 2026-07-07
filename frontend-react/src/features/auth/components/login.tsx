@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { useDispatch, useSelector } from 'react-redux';
 import { Segment, Form, Button, Header, Icon } from 'semantic-ui-react';
+import { loginRequest } from "../authSlice";
 
 interface LoginProps {
     switchToRegister: Function
@@ -8,20 +10,15 @@ interface LoginProps {
 export default function Login({
     switchToRegister,
 }: LoginProps) {
-
+    const dispatch = useDispatch();
     const [username, setUsername] = useState<string>('');
     const [password, setPassword] = useState<string>('');
-    const [loading, setLoading] = useState<boolean>(false);
+    const [loading, _] = useState<boolean>(false);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        setLoading(true);
-
-        // TODO: Connect this to your Redux Action / Saga later
-        console.log('Logging in with:', { username, password });
-
-        // Fake loading state for visual feedback
-        setTimeout(() => setLoading(false), 1000);
+        // setLoading(true);
+        dispatch(loginRequest({ username, password }));
     };
 
     return (
