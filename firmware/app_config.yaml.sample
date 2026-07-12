@@ -1,0 +1,8 @@
+# config.yaml (Keep this out of your public GitHub repo!)
+COURIER_ID: ""
+DEVICE_ID: ""
+WIFI_SSID: ""
+WIFI_PASS: ""
+SENSOR_SAMPLING_RATE_MS: 5000
+SERVICE_INGEST_TARGET_IP: ""
+SERVICE_INGEST_TARGET_PORT: 5000
